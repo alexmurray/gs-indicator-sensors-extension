@@ -1,0 +1,6 @@
+{
+    "shell-version": ["3.3.90"],
+    "uuid": "indicator-sensors@alexmurray.github.com",
+    "name": "Hardware Sensors Indicator",
+    "description": "Integrate Hardware Sensors Indicator with gnome-shell"
+}
