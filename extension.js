@@ -97,7 +97,7 @@ const IndicatorSensorsItem = new Lang.Class({
 
     update: function() {
         // TODO: take digits into account and format string better
-        this.label.text = (this.sensor.Label + ' ' + this.sensor.Value + this.sensor.Units);
+        this.label.text = (this.sensor.Label + ' ' + this.sensor.Value.toFixed(this.sensor.Digits) + this.sensor.Units);
     },
 });
 
