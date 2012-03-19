@@ -66,6 +66,7 @@ const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSe
     <property name="Label" type="s" access="read" />
     <property name="Units" type="s" access="read" />
     <property name="Value" type="d" access="read" />
+    <property name="Index" type="u" access="read" />
 </interface>;
 
 const ActiveSensorProxy = Gio.DBusProxy.makeProxyWrapper(ActiveSensorInterface);
@@ -88,9 +89,6 @@ const IndicatorSensorsItem = new Lang.Class({
         this.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
             this.update();
         }));
-        // TODO: connect to PropertiesChanged signal on
-        // org.freedesktop.DBus.Properties interface for the sensor to
-        // update when properties change
         this.update();
 	this.addActor(this.label);
     },
@@ -125,9 +123,21 @@ const IndicatorSensors = new Lang.Class({
             // case) indexed by path
             let objects = result[0];
             for each (path in Object.keys(objects)) {
+                // TODO: by convention this only exports
+                // ActiveSensor's but we should probably loop through
+                // the exported interfaces for each object to check...
                 let sensor = new ActiveSensor(path);
                 this.addSensor(sensor, path);
             }
+        }));
+        this._objectManager.connectSignal('InterfacesAdded', Lang.bind(this, function(proxy, sender, [path, props]) {
+            global.log("interface added:" + path);
+            let sensor = new ActiveSensor(path);
+            this.addSensor(sensor, path);
+        }));
+        this._objectManager.connectSignal('InterfacesRemoved', Lang.bind(this, function(proxy, sender, [path, props]) {
+            global.log("interface removed:" + path);
+            this.removeSensor(path);
         }));
         // TODO: connect to InterfacesAdded and InterfacesRemoved
         // signals on ObjectManager to dynamically add / remove
@@ -166,7 +176,7 @@ const IndicatorSensors = new Lang.Class({
             this.setPrimaryItem(item);
         }));
         this.items[path] = { sensor: sensor, item: item };
-        this._contentSection.addMenuItem(item);
+        this._contentSection.addMenuItem(item, sensor.Index);
         if (!this._primaryItem) {
             this.setPrimaryItem(item);
         }
