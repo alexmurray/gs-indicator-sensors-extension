@@ -23,7 +23,7 @@ const DBus = imports.dbus;
 const Gio = imports.gi.Gio;
 const Lang = imports.lang;
 
-const BUS_NAME = 'com.github.alexmurray.IndicatorSensors.ObjectManager';
+const BUS_NAME = 'com.github.alexmurray.IndicatorSensors';
 const OBJECT_MANAGER_PATH = '/com/github/alexmurray/IndicatorSensors/ActiveSensors';
 
 const PropertiesIface = <interface name="org.freedesktop.DBus.Properties">
@@ -37,8 +37,7 @@ const PropertiesIface = <interface name="org.freedesktop.DBus.Properties">
 const PropertiesProxy = Gio.DBusProxy.makeProxyWrapper(PropertiesIface);
 
 function Properties(path) {
-    return new PropertiesProxy(Gio.DBus.session, BUS_NAME,
-                               path);
+    return new PropertiesProxy(Gio.DBus.session, BUS_NAME, path);
 }
 
 const ObjectManagerInterface = <interface name="org.freedesktop.DBus.ObjectManager">
@@ -58,10 +57,11 @@ const ObjectManagerInterface = <interface name="org.freedesktop.DBus.ObjectManag
 const ObjectManagerProxy = Gio.DBusProxy.makeProxyWrapper(ObjectManagerInterface);
 
 function ObjectManager() {
-    return new ObjectManagerProxy(Gio.DBus.session, BUS_NAME, OBJECT_MANAGER_PATH);
+    return new ObjectManagerProxy(Gio.DBus.session, BUS_NAME,
+                                  OBJECT_MANAGER_PATH);
 }
 
-const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSensors.ObjectManager.ActiveSensor">
+const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSensors.ActiveSensor">
     <property name="Digits" type="u" access="read" />
     <property name="Label" type="s" access="read" />
     <property name="Units" type="s" access="read" />
@@ -73,6 +73,24 @@ const ActiveSensorProxy = Gio.DBusProxy.makeProxyWrapper(ActiveSensorInterface);
 
 function ActiveSensor(path) {
     return new ActiveSensorProxy(Gio.DBus.session, BUS_NAME, path);
+}
+
+
+const INDICATOR_SENSORS_PATH = '/com/github/alexmurray/IndicatorSensors';
+
+const IndicatorSensorsInterface = <interface name="com.github.alexmurray.IndicatorSensors">
+<method name="ShowPreferences">
+</method>
+<method name="HideIndicator">
+</method>
+</interface>;
+
+const IndicatorSensorsProxy = Gio.DBusProxy.makeProxyWrapper(IndicatorSensorsInterface);
+
+function IndicatorSensors(path) {
+    return new IndicatorSensorsProxy(Gio.DBus.session,
+                                     BUS_NAME,
+                                     INDICATOR_SENSORS_PATH);
 }
 
 const IndicatorSensorsItem = new Lang.Class({
@@ -99,7 +117,7 @@ const IndicatorSensorsItem = new Lang.Class({
     },
 });
 
-const IndicatorSensors = new Lang.Class({
+const IndicatorSensorsIndicator = new Lang.Class({
     Name: 'IndicatorSensors.Indicator',
     Extends: PanelMenu.SystemStatusButton,
 
@@ -113,10 +131,20 @@ const IndicatorSensors = new Lang.Class({
         this._primaryItem = null;
         this.actor.add_actor(this._label);
 
-	this._contentSection = new PopupMenu.PopupMenuSection();
-	this.menu.addMenuItem(this._contentSection);
-        this.items = {};
+	this._itemsSection = new PopupMenu.PopupMenuSection();
+	this.menu.addMenuItem(this._itemsSection);
+        this._items = {};
 
+        this._indicatorSensors = new IndicatorSensors();
+        this._indicatorSensors.HideIndicatorRemote();
+
+        // add preferences menu item
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        let prefsItem = new PopupMenu.PopupMenuItem('Preferences');
+        prefsItem.connect('activate', Lang.bind(this, function(event) {
+            this._indicatorSensors.ShowPreferencesRemote();
+        }));
+	this.menu.addMenuItem(prefsItem);
         this._objectManager = new ObjectManager();
         this._objectManager.GetManagedObjectsRemote(Lang.bind(this, function(result, error) {
             // result contains the exported objects (sensors in this
@@ -139,9 +167,6 @@ const IndicatorSensors = new Lang.Class({
             global.log("interface removed:" + path);
             this.removeSensor(path);
         }));
-        // TODO: connect to InterfacesAdded and InterfacesRemoved
-        // signals on ObjectManager to dynamically add / remove
-        // sensors
     },
 
     updateLabel: function () {
@@ -175,8 +200,8 @@ const IndicatorSensors = new Lang.Class({
             // set this item as primary one
             this.setPrimaryItem(item);
         }));
-        this.items[path] = { sensor: sensor, item: item };
-        this._contentSection.addMenuItem(item, sensor.Index);
+        this._items[path] = { sensor: sensor, item: item };
+        this._itemsSection.addMenuItem(item, sensor.Index);
         if (!this._primaryItem) {
             this.setPrimaryItem(item);
         }
@@ -184,13 +209,13 @@ const IndicatorSensors = new Lang.Class({
 
     removeSensor: function (path) {
         global.log("Removing sensor: " + path);
-        let sensor = this.items[path].sensor;
-        let item = this.items[path].item;
-        delete this.items[path];
+        let sensor = this._items[path].sensor;
+        let item = this._items[path].item;
+        delete this._items[path];
         if (item == this._primaryItem) {
-            let paths = Object.keys(this.items);
+            let paths = Object.keys(this._items);
             if (paths.length > 0) {
-                this.setPrimaryItem((this.items[paths[0]]).item);
+                this.setPrimaryItem((this._items[paths[0]]).item);
             } else {
                 this.setPrimaryItem(null);
             }
@@ -203,7 +228,7 @@ const IndicatorSensors = new Lang.Class({
 
     destroy: function() {
         global.log("Removing all sensors");
-        for each (path in Object.keys(this.items)) {
+        for each (path in Object.keys(this._items)) {
             this.removeSensor(path);
         }
 	this.parent();
@@ -217,7 +242,7 @@ function init() {
 let _indicator;
 
 function enable() {
-    _indicator = new IndicatorSensors;
+    _indicator = new IndicatorSensorsIndicator;
     Main.panel.addToStatusArea('indicator-sensors', _indicator);
 }
 
