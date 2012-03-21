@@ -117,6 +117,15 @@ const IndicatorSensorsItem = new Lang.Class({
     },
 });
 
+const INDICATOR_SETTINGS_SCHEMA = 'indicator-sensors.indicator';
+const INDICATOR_PRIMARY_SENSOR_KEY = 'primary-sensor';
+const INDICATOR_DISPLAY_FLAGS_KEY = 'display-flags';
+const DisplayFlags ={
+    VALUE: (1 << 0),
+    LABEL: (1 << 1),
+    ICON: (1 << 2)
+};
+
 const IndicatorSensorsIndicator = new Lang.Class({
     Name: 'IndicatorSensors.Indicator',
     Extends: PanelMenu.SystemStatusButton,
@@ -125,6 +134,19 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // TODO: add translation
 	this.parent('indicator-sensors', "Hardware Sensors Indicator");
 
+        this._settings = new Gio.Settings({schema: INDICATOR_SETTINGS_SCHEMA});
+        this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
+        this._displayFlags = this._settings.get_int(INDICATOR_DISPLAY_FLAGS_KEY);
+        this._settings.connect('changed::' + INDICATOR_DISPLAY_FLAGS_KEY,
+                               Lang.bind(this, function () {
+                                   this._displayFlags = this._settings.get_int(INDICATOR_DISPLAY_FLAGS_KEY);
+                                   this.updateLabel();
+                               }));
+        this._settings.connect('changed::' + INDICATOR_PRIMARY_SENSOR_KEY,
+                               Lang.bind(this, function (){
+                                   this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
+                                   this.updateLabel();
+                               }));
         // try to hide existing indicator
         this._indicatorSensors = new IndicatorSensors();
         this._indicatorSensors.HideIndicatorRemote();
@@ -187,7 +209,18 @@ const IndicatorSensorsIndicator = new Lang.Class({
     updateLabel: function () {
         let text = 'No sensors';
         if (this._primaryItem) {
-            text = this._primaryItem.label.text;
+            // respect setting in gsettings
+            text = '';
+            if (this._displayFlags & DisplayFlags.LABEL) {
+                text += this._primaryItem.sensor.Label;
+            }
+            if (this._displayFlags & DisplayFlags.VALUE) {
+                // make sure there is a space if we have a label
+                if (text != '') {
+                    text += ' ';
+                }
+                text += this._primaryItem.sensor.Value.toFixed(this._primaryItem.sensor.Digits) + this._primaryItem.sensor.Units;
+            }
         }
         this._label.text = text;
     },
