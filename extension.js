@@ -62,6 +62,7 @@ function ObjectManager() {
 }
 
 const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSensors.ActiveSensor">
+    <property name="Path" type="s" access="read" />
     <property name="Digits" type="u" access="read" />
     <property name="Label" type="s" access="read" />
     <property name="Units" type="s" access="read" />
@@ -131,6 +132,10 @@ const IndicatorSensorsIndicator = new Lang.Class({
     Extends: PanelMenu.SystemStatusButton,
 
     _init: function() {
+        // TODO: if hiding the indictor failed then don't do anything??
+        this._indicatorSensors = new IndicatorSensors();
+        this._indicatorSensors.HideIndicatorRemote();
+
         // TODO: add translation
 	this.parent('indicator-sensors', "Hardware Sensors Indicator");
 
@@ -147,10 +152,6 @@ const IndicatorSensorsIndicator = new Lang.Class({
                                    this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
                                    this.updateLabel();
                                }));
-        // try to hide existing indicator
-        this._indicatorSensors = new IndicatorSensors();
-        this._indicatorSensors.HideIndicatorRemote();
-
         // replace our icon with a label to show the primary sensor
         this.actor.remove_actor(this.actor.get_children()[0]);
         this._label = new St.Label();
@@ -169,11 +170,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // add a separator and the preferences menu item
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addAction('Preferences', Lang.bind(this, function(event) {
-            this._indicatorSensors.ShowPreferencesRemote(Lang.bind(this, function(result, error) {
-                global.log("called show preferences remote");
-                global.log("result: " + result);
-                global.log("error: " + error);
-            }));
+            this._indicatorSensors.ShowPreferencesRemote();
         }));
 
         // finally connect and show any existing enabled sensors
@@ -234,6 +231,8 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }
         this._primaryItem = item;
         if (this._primaryItem) {
+            this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
+                                      this._primaryItem.sensor.Path);
             this._primaryItem.setShowDot(true);
             this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
                 this.updateLabel();
@@ -250,7 +249,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }));
         this._items[path] = { sensor: sensor, item: item };
         this._itemsSection.addMenuItem(item, sensor.Index);
-        if (!this._primaryItem) {
+        // see if this path matches _primarySensorPath
+        if (this._primarySensorPath == sensor.Path) {
+            global.log("Found primary sensor " + this._primarySensorPath + " at " + path);
             this.setPrimaryItem(item);
         }
     },
