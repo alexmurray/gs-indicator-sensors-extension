@@ -125,26 +125,36 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // TODO: add translation
 	this.parent('indicator-sensors', "Hardware Sensors Indicator");
 
+        // try to hide existing indicator
+        this._indicatorSensors = new IndicatorSensors();
+        this._indicatorSensors.HideIndicatorRemote();
+
         // replace our icon with a label to show the primary sensor
         this.actor.remove_actor(this.actor.get_children()[0]);
         this._label = new St.Label();
         this._primaryItem = null;
         this.actor.add_actor(this._label);
 
+        // create a separate section of items to add sensor items to
+        // so we can keep a separator and preferences items at bottom
+        // of list
 	this._itemsSection = new PopupMenu.PopupMenuSection();
 	this.menu.addMenuItem(this._itemsSection);
+
+        // initialise our list of items to being empty
         this._items = {};
 
-        this._indicatorSensors = new IndicatorSensors();
-        this._indicatorSensors.HideIndicatorRemote();
-
-        // add preferences menu item
+        // add a separator and the preferences menu item
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        let prefsItem = new PopupMenu.PopupMenuItem('Preferences');
-        prefsItem.connect('activate', Lang.bind(this, function(event) {
-            this._indicatorSensors.ShowPreferencesRemote();
+        this.menu.addAction('Preferences', Lang.bind(this, function(event) {
+            this._indicatorSensors.ShowPreferencesRemote(Lang.bind(this, function(result, error) {
+                global.log("called show preferences remote");
+                global.log("result: " + result);
+                global.log("error: " + error);
+            }));
         }));
-	this.menu.addMenuItem(prefsItem);
+
+        // finally connect and show any existing enabled sensors
         this._objectManager = new ObjectManager();
         this._objectManager.GetManagedObjectsRemote(Lang.bind(this, function(result, error) {
             // result contains the exported objects (sensors in this
@@ -158,6 +168,8 @@ const IndicatorSensorsIndicator = new Lang.Class({
                 this.addSensor(sensor, path);
             }
         }));
+        // make sure we dynamically update when sensors enabled /
+        // disabled
         this._objectManager.connectSignal('InterfacesAdded', Lang.bind(this, function(proxy, sender, [path, props]) {
             global.log("interface added:" + path);
             let sensor = new ActiveSensor(path);
@@ -167,6 +179,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
             global.log("interface removed:" + path);
             this.removeSensor(path);
         }));
+
+        // finally update our label
+        this.updateLabel();
     },
 
     updateLabel: function () {
