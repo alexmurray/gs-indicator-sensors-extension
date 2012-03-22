@@ -82,6 +82,8 @@ const INDICATOR_SENSORS_PATH = '/com/github/alexmurray/IndicatorSensors';
 const IndicatorSensorsInterface = <interface name="com.github.alexmurray.IndicatorSensors">
 <method name="ShowPreferences">
 </method>
+<method name="ShowIndicator">
+</method>
 <method name="HideIndicator">
 </method>
 </interface>;
@@ -280,6 +282,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         for each (path in Object.keys(this._items)) {
             this.removeSensor(path);
         }
+        this._indicatorSensors.ShowIndicatorRemote();
 	this.parent();
     },
 });
