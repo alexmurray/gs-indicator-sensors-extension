@@ -198,7 +198,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }));
         this._objectManager.connectSignal('InterfacesRemoved', Lang.bind(this, function(proxy, sender, [path, props]) {
             global.log("interface removed:" + path);
-            this.removeSensor(path);
+            this.removeSensor(path, true);
         }));
 
         // finally update our label
@@ -233,6 +233,8 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }
         this._primaryItem = item;
         if (this._primaryItem) {
+            global.log("Setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
+                       this._primaryItem.sensor.Path)
             this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
                                       this._primaryItem.sensor.Path);
             this._primaryItem.setShowDot(true);
@@ -258,12 +260,12 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }
     },
 
-    removeSensor: function (path) {
-        global.log("Removing sensor: " + path);
+    removeSensor: function (path, active) {
+        global.log("Removing sensor: " + path + " [active: " + active + "]");
         let sensor = this._items[path].sensor;
         let item = this._items[path].item;
         delete this._items[path];
-        if (item == this._primaryItem) {
+        if (active && item == this._primaryItem) {
             let paths = Object.keys(this._items);
             if (paths.length > 0) {
                 this.setPrimaryItem((this._items[paths[0]]).item);
@@ -280,7 +282,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
     destroy: function() {
         global.log("Removing all sensors");
         for each (path in Object.keys(this._items)) {
-            this.removeSensor(path);
+            this.removeSensor(path, false);
         }
         this._indicatorSensors.ShowIndicatorRemote();
 	this.parent();
