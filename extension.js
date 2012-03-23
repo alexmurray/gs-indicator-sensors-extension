@@ -151,7 +151,19 @@ const IndicatorSensorsIndicator = new Lang.Class({
                                }));
         this._settings.connect('changed::' + INDICATOR_PRIMARY_SENSOR_KEY,
                                Lang.bind(this, function (){
+                                   global.log("primary-sensor changed to " +
+                                              this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY));
                                    this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
+                                   // try and find the primary sensor
+                                   // and use it if it exists
+                                   for (let path in this._items) {
+                                       let { sensor: sensor,
+                                             item: item } = this._items[path];
+                                       if (sensor.Path == this._primarySensorPath) {
+                                           global.log("found existing sensor matching primary item " + sensor.Path);
+                                           this.setPrimaryItem(item);
+                                       }
+                                   }
                                    this.updateLabel();
                                }));
         // replace our icon with a label to show the primary sensor
@@ -225,30 +237,33 @@ const IndicatorSensorsIndicator = new Lang.Class({
     },
 
     setPrimaryItem: function (item) {
-        if (this._primaryItem) {
-            this._primaryItem.prop.disconnectSignal(this._id);
-            this._primaryItem.setShowDot(false);
-            this._primaryItem = null;
-            this._id = null;
+        if (item != this._primaryItem){
+            if (this._primaryItem) {
+                this._primaryItem.prop.disconnectSignal(this._id);
+                this._primaryItem.setShowDot(false);
+                this._primaryItem = null;
+                this._id = null;
+            }
+            this._primaryItem = item;
+            if (this._primaryItem) {
+                global.log("setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
+                           this._primaryItem.sensor.Path)
+                this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
+                                          this._primaryItem.sensor.Path);
+                this._primaryItem.setShowDot(true);
+                this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
+                    this.updateLabel();
+                }));
+            }
+            this.updateLabel();
         }
-        this._primaryItem = item;
-        if (this._primaryItem) {
-            global.log("Setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
-                       this._primaryItem.sensor.Path)
-            this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
-                                      this._primaryItem.sensor.Path);
-            this._primaryItem.setShowDot(true);
-            this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
-                this.updateLabel();
-            }));
-        }
-        this.updateLabel();
     },
 
     addSensor: function (sensor, path) {
         let item = new IndicatorSensorsItem(sensor, path);
         item.connect('activate', Lang.bind(this, function(event) {
             // set this item as primary one
+            global.log("sensor " + sensor.Path + "activated - setting as primary item");
             this.setPrimaryItem(item);
         }));
         this._items[path] = { sensor: sensor, item: item };
@@ -285,6 +300,8 @@ const IndicatorSensorsIndicator = new Lang.Class({
             this.removeSensor(path, false);
         }
         this._indicatorSensors.ShowIndicatorRemote();
+        delete this._items;
+        delete this._settings;
 	this.parent();
     },
 });
