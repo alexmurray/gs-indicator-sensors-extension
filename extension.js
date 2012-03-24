@@ -310,14 +310,25 @@ function init() {
     // nothing to do here
 }
 
-let _indicator;
+let _indicator = null;
+let _watch;
 
 function enable() {
-    _indicator = new IndicatorSensorsIndicator;
-    Main.panel.addToStatusArea('indicator-sensors', _indicator);
+    _watch = Gio.DBus.session.watch_name(BUS_NAME,
+                                         Gio.BusNameWatcherFlags.NONE,
+                                         function () {
+                                             _indicator = new IndicatorSensorsIndicator();
+                                             Main.panel.addToStatusArea('indicator-sensors', _indicator);
+                                         },
+                                         function () {
+                                             _indicator.destroy();
+                                             _indicator = null;
+                                         });
 }
 
 function disable() {
-    // disconnect from dbus
-    _indicator.destroy();
+    Gio.DBus.session.unwatch_name(_watch);
+    if (_indicator) {
+        _indicator.destroy();
+    }
 }
