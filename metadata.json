@@ -1,6 +1,9 @@
 {
-    "shell-version": ["3.3.90"],
-    "uuid": "indicator-sensors@alexmurray.github.com",
+    "description": "Integrate Hardware Sensors Indicator with GNOME Shell",
+    "extension-id": "indicator-sensors",
     "name": "Hardware Sensors Indicator",
-    "description": "Integrate Hardware Sensors Indicator with gnome-shell"
+    "shell-version": ["3.3.90"],
+    "url": "https://github.com/alexmurray/gs-indicator-sensors-extension/",
+    "uuid": "indicator-sensors@alexmurray.github.com",
+    "version": "1"
 }
