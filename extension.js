@@ -191,7 +191,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
             // result contains the exported objects (sensors in this
             // case) indexed by path
             let objects = result[0];
-            for each (path in Object.keys(objects)) {
+            for each (let path in Object.keys(objects)) {
                 // TODO: by convention this only exports
                 // ActiveSensor's but we should probably loop through
                 // the exported interfaces for each object to check...
@@ -311,7 +311,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
 
     destroy: function() {
         global.log("Removing all sensors");
-        for each (path in Object.keys(this._items)) {
+        for each (let path in Object.keys(this._items)) {
             this.removeSensor(path, false);
         }
         this._indicatorSensors.ShowIndicatorRemote();
