@@ -244,10 +244,13 @@ const IndicatorSensorsIndicator = new Lang.Class({
             }
             this._primaryItem = item;
             if (this._primaryItem) {
-                global.log("setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
-                           this._primaryItem.sensor.Path)
-                this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
-                                          this._primaryItem.sensor.Path);
+		let sensor = this._primaryItem.sensor;
+		if (this._primarySensorPath != sensor.Path) {
+                    global.log("setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
+                               this._primaryItem.sensor.Path);
+                    this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
+                                              this._primaryItem.sensor.Path);
+		}
                 this._primaryItem.setShowDot(true);
                 this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
                     this.updateLabel();
