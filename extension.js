@@ -104,19 +104,23 @@ const IndicatorSensorsItem = new Lang.Class({
 	this.parent();
         this.sensor = sensor;
 
-	this.label = new St.Label();
+        this._label = new St.Label();
+        this._valueLabel = new St.Label();
+        this.addActor(this._label);
+        this.addActor(this._valueLabel, { align: St.Align.END });
 
         this.prop = new Properties(path);
         this.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
             this.update();
         }));
         this.update();
-	this.addActor(this.label);
     },
 
     update: function() {
-        this.label.text = (this.sensor.Label + ' ' + this.sensor.Value.toFixed(this.sensor.Digits) + this.sensor.Units);
-    },
+        this._label.text = this.sensor.Label;
+        this._valueLabel.text = (this.sensor.Value.toFixed(this.sensor.Digits) +
+                                 this.sensor.Units);
+    }
 });
 
 const INDICATOR_SETTINGS_SCHEMA = 'indicator-sensors.indicator';
