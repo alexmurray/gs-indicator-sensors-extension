@@ -111,12 +111,12 @@ const IndicatorSensorsItem = new Lang.Class({
 
         this.prop = new Properties(path);
         this.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
-            this.update();
+            this._update();
         }));
-        this.update();
+        this._update();
     },
 
-    update: function() {
+    _update: function() {
         this._label.text = this.sensor.Label;
         this._valueLabel.text = (this.sensor.Value.toFixed(this.sensor.Digits) +
                                  this.sensor.Units);
@@ -163,7 +163,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
                                              item: item } = this._items[path];
                                        if (sensor.Path == this._primarySensorPath) {
                                            global.log("found existing sensor matching primary item " + sensor.Path);
-                                           this.setPrimaryItem(item);
+                                           this._setPrimaryItem(item);
                                        }
                                    }
                                    this.updateLabel();
@@ -200,7 +200,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
                 // ActiveSensor's but we should probably loop through
                 // the exported interfaces for each object to check...
                 let sensor = new ActiveSensor(path);
-                this.addSensor(sensor, path);
+                this._addSensor(sensor, path);
             }
         }));
         // make sure we dynamically update when sensors enabled /
@@ -208,18 +208,18 @@ const IndicatorSensorsIndicator = new Lang.Class({
         this._objectManager.connectSignal('InterfacesAdded', Lang.bind(this, function(proxy, sender, [path, props]) {
             global.log("interface added:" + path);
             let sensor = new ActiveSensor(path);
-            this.addSensor(sensor, path);
+            this._addSensor(sensor, path);
         }));
         this._objectManager.connectSignal('InterfacesRemoved', Lang.bind(this, function(proxy, sender, [path, props]) {
             global.log("interface removed:" + path);
-            this.removeSensor(path, true);
+            this._removeSensor(path, true);
         }));
 
         // finally update our label
-        this.updateLabel();
+        this._updateLabel();
     },
 
-    updateLabel: function () {
+    _updateLabel: function () {
         let text = 'No sensors';
         if (this._primaryItem) {
             // respect setting in gsettings
@@ -238,7 +238,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         this._label.text = text;
     },
 
-    setPrimaryItem: function (item) {
+    _setPrimaryItem: function (item) {
         if (item != this._primaryItem){
             if (this._primaryItem) {
                 this._primaryItem.prop.disconnectSignal(this._id);
@@ -250,21 +250,21 @@ const IndicatorSensorsIndicator = new Lang.Class({
             if (this._primaryItem) {
 		let sensor = this._primaryItem.sensor;
 		if (this._primarySensorPath != sensor.Path) {
-                    global.log("setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
+                    global.log("_setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
                                this._primaryItem.sensor.Path);
                     this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
                                               this._primaryItem.sensor.Path);
 		}
                 this._primaryItem.setShowDot(true);
                 this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
-                    this.updateLabel();
+                    this._updateLabel();
                 }));
             }
-            this.updateLabel();
+            this._updateLabel();
         }
     },
 
-    addSensor: function (sensor, path) {
+    _addSensor: function (sensor, path) {
         this._items[path] = { sensor: sensor };
         // since we can't easily enforce the ordering of items, remove
         // all and recreate them in the correct order
@@ -283,18 +283,18 @@ const IndicatorSensorsIndicator = new Lang.Class({
             item.connect('activate', Lang.bind(this, function(item) {
                 // set this item as primary one
                 global.log("sensor " + item.sensor.Path + "activated - setting as primary item");
-                this.setPrimaryItem(item);
+                this._setPrimaryItem(item);
             }));
             this._itemsSection.addMenuItem(item);
             // see if this path matches _primarySensorPath to update as
             // new item
             if (this._primarySensorPath == _sensor.Path) {
-                this.setPrimaryItem(item);
+                this._setPrimaryItem(item);
             }
         }
     },
 
-    removeSensor: function (path, active) {
+    _removeSensor: function (path, active) {
         global.log("Removing sensor: " + path + " [active: " + active + "]");
         let sensor = this._items[path].sensor;
         let item = this._items[path].item;
@@ -302,9 +302,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
         if (active && item == this._primaryItem) {
             let paths = Object.keys(this._items);
             if (paths.length > 0) {
-                this.setPrimaryItem((this._items[paths[0]]).item);
+                this._setPrimaryItem((this._items[paths[0]]).item);
             } else {
-                this.setPrimaryItem(null);
+                this._setPrimaryItem(null);
             }
         }
 
@@ -316,13 +316,13 @@ const IndicatorSensorsIndicator = new Lang.Class({
     destroy: function() {
         global.log("Removing all sensors");
         for each (let path in Object.keys(this._items)) {
-            this.removeSensor(path, false);
+            this._removeSensor(path, false);
         }
         this._indicatorSensors.ShowIndicatorRemote();
         delete this._items;
         delete this._settings;
 	this.parent();
-    },
+    }
 });
 
 function init() {
