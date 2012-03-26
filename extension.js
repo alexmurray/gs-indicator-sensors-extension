@@ -115,7 +115,6 @@ const IndicatorSensorsItem = new Lang.Class({
     },
 
     update: function() {
-        // TODO: take digits into account and format string better
         this.label.text = (this.sensor.Label + ' ' + this.sensor.Value.toFixed(this.sensor.Digits) + this.sensor.Units);
     },
 });
@@ -134,7 +133,6 @@ const IndicatorSensorsIndicator = new Lang.Class({
     Extends: PanelMenu.SystemStatusButton,
 
     _init: function() {
-        // TODO: if hiding the indictor failed then don't do anything??
         this._indicatorSensors = new IndicatorSensors();
         this._indicatorSensors.HideIndicatorRemote();
 
