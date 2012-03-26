@@ -261,18 +261,32 @@ const IndicatorSensorsIndicator = new Lang.Class({
     },
 
     addSensor: function (sensor, path) {
-        let item = new IndicatorSensorsItem(sensor, path);
-        item.connect('activate', Lang.bind(this, function(event) {
-            // set this item as primary one
-            global.log("sensor " + sensor.Path + "activated - setting as primary item");
-            this.setPrimaryItem(item);
+        this._items[path] = { sensor: sensor };
+        // since we can't easily enforce the ordering of items, remove
+        // all and recreate them in the correct order
+        this._itemsSection.removeAll();
+
+        // sort all sensor paths by index
+        let paths = Object.keys(this._items);
+        paths = paths.sort(Lang.bind(this, function (a, b) {
+            return (this._items[a].sensor.Index - this._items[b].sensor.Index);
         }));
-        this._items[path] = { sensor: sensor, item: item };
-        this._itemsSection.addMenuItem(item, sensor.Index);
-        // see if this path matches _primarySensorPath
-        if (this._primarySensorPath == sensor.Path) {
-            global.log("Found primary sensor " + this._primarySensorPath + " at " + path);
-            this.setPrimaryItem(item);
+        for (let i = 0; i < paths.length; i++) {
+            let _path = paths[i];
+            let _sensor = this._items[_path].sensor;
+            let item = new IndicatorSensorsItem(_sensor, _path);
+            this._items[_path].item = item;
+            item.connect('activate', Lang.bind(this, function(item) {
+                // set this item as primary one
+                global.log("sensor " + item.sensor.Path + "activated - setting as primary item");
+                this.setPrimaryItem(item);
+            }));
+            this._itemsSection.addMenuItem(item);
+            // see if this path matches _primarySensorPath to update as
+            // new item
+            if (this._primarySensorPath == _sensor.Path) {
+                this.setPrimaryItem(item);
+            }
         }
     },
 
