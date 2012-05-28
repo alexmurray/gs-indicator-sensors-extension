@@ -264,8 +264,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }
     },
 
-    _addSensor: function (sensor, path) {
-        this._items[path] = { sensor: sensor };
+    _rebuildMenu: function () {
         // since we can't easily enforce the ordering of items, remove
         // all and recreate them in the correct order
         this._itemsSection.removeAll();
@@ -294,10 +293,30 @@ const IndicatorSensorsIndicator = new Lang.Class({
         }
     },
 
+    _addSensor: function (sensor, path) {
+        // watch for properties change so if sensor index changes we can relist
+        // them
+        var prop = new Properties(path);
+        prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
+          var index = this._items[path].sensor.Index;
+          if (index != this._items[path].index) {
+            this._items[path].index = index;
+            this._rebuildMenu(); 
+          }
+        }));
+        // save Index so we can know if sensors get reordered
+        this._items[path] = { sensor: sensor,
+                              index: sensor.Index,
+                              prop: prop };
+        // rebuild menu to show new sensor in correct position
+        this._rebuildMenu();
+    },
+
     _removeSensor: function (path, active) {
         global.log("Removing sensor: " + path + " [active: " + active + "]");
         let sensor = this._items[path].sensor;
         let item = this._items[path].item;
+        let prop = this._items[path].prop;
         delete this._items[path];
         if (active && item == this._primaryItem) {
             let paths = Object.keys(this._items);
@@ -310,7 +329,6 @@ const IndicatorSensorsIndicator = new Lang.Class({
 
         // no need to explicitly remove item, just destroy it
         item.destroy();
-        delete sensor;
     },
 
     destroy: function() {
