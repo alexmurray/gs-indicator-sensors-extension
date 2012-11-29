@@ -5,5 +5,5 @@
     "shell-version": ["3.3.90", "3.3.92", "3.4", "3.6"],
     "url": "https://github.com/alexmurray/gs-indicator-sensors-extension/",
     "uuid": "indicator-sensors@alexmurray.github.com",
-    "version": "1"
+    "version": "2"
 }
