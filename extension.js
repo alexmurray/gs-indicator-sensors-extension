@@ -301,7 +301,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
           var index = this._items[path].sensor.Index;
           if (index != this._items[path].index) {
             this._items[path].index = index;
-            this._rebuildMenu(); 
+            this._rebuildMenu();
           }
         }));
         // save Index so we can know if sensors get reordered
