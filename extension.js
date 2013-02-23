@@ -26,20 +26,6 @@ const Lang = imports.lang;
 const BUS_NAME = 'com.github.alexmurray.IndicatorSensors';
 const OBJECT_MANAGER_PATH = '/com/github/alexmurray/IndicatorSensors/ActiveSensors';
 
-const PropertiesIface = <interface name="org.freedesktop.DBus.Properties">
-<signal name="PropertiesChanged">
-    <arg type="s" direction="out" />
-    <arg type="a{sv}" direction="out" />
-    <arg type="as" direction="out" />
-</signal>
-</interface>;
-
-const PropertiesProxy = Gio.DBusProxy.makeProxyWrapper(PropertiesIface);
-
-function Properties(path) {
-    return new PropertiesProxy(Gio.DBus.session, BUS_NAME, path);
-}
-
 const ObjectManagerInterface = <interface name="org.freedesktop.DBus.ObjectManager">
 <method name="GetManagedObjects">
     <arg type="a{oa{sa{sv}}}" direction="out" />
@@ -68,6 +54,7 @@ const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSe
     <property name="Units" type="s" access="read" />
     <property name="Value" type="d" access="read" />
     <property name="Index" type="u" access="read" />
+    <property name="IconPath" type="s" access="read" />
 </interface>;
 
 const ActiveSensorProxy = Gio.DBusProxy.makeProxyWrapper(ActiveSensorInterface);
@@ -104,14 +91,16 @@ const IndicatorSensorsItem = new Lang.Class({
 	this.parent();
         this.sensor = sensor;
 
-        this._label = new St.Label();
-        this._valueLabel = new St.Label();
+        this._label = new St.Label({ text: '' });
+        this._valueLabel = new St.Label({ text: '' });
         this.addActor(this._label);
         this.addActor(this._valueLabel, { align: St.Align.END });
 
-        this.prop = new Properties(path);
-        this.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
-            this._update();
+        this._id = this.sensor.connect('g-properties-changed',
+                                       Lang.bind(this, this._update));
+        // make sure we disconnect when destroyed
+        this.actor.connect('destroy', Lang.bind(this, function () {
+            this.sensor.disconnect(this._id);
         }));
         this._update();
     },
@@ -143,36 +132,39 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // TODO: add translation
 	this.parent('indicator-sensors', "Hardware Sensors Indicator");
 
-        this._settings = new Gio.Settings({schema: INDICATOR_SETTINGS_SCHEMA});
+        let settings = new Gio.Settings({ schema: INDICATOR_SETTINGS_SCHEMA });
+        this._settings = settings;
         this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
         this._displayFlags = this._settings.get_int(INDICATOR_DISPLAY_FLAGS_KEY);
         this._settings.connect('changed::' + INDICATOR_DISPLAY_FLAGS_KEY,
                                Lang.bind(this, function () {
-                                   this._displayFlags = this._settings.get_int(INDICATOR_DISPLAY_FLAGS_KEY);
-                                   this.updateLabel();
+                                   this._displayFlags = settings.get_int(INDICATOR_DISPLAY_FLAGS_KEY);
+                                   this._updateDisplay();
                                }));
         this._settings.connect('changed::' + INDICATOR_PRIMARY_SENSOR_KEY,
                                Lang.bind(this, function (){
-                                   global.log("primary-sensor changed to " +
-                                              this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY));
-                                   this._primarySensorPath = this._settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
+                                   this._primarySensorPath = settings.get_string(INDICATOR_PRIMARY_SENSOR_KEY);
                                    // try and find the primary sensor
                                    // and use it if it exists
                                    for (let path in this._items) {
                                        let { sensor: sensor,
                                              item: item } = this._items[path];
                                        if (sensor.Path == this._primarySensorPath) {
-                                           global.log("found existing sensor matching primary item " + sensor.Path);
                                            this._setPrimaryItem(item);
                                        }
                                    }
-                                   this.updateLabel();
+                                   this._updateDisplay();
                                }));
         // replace our icon with a label to show the primary sensor
         this.actor.remove_actor(this.actor.get_children()[0]);
+        let box = new St.BoxLayout({ name: 'indicatorSensorsPrimaryIndicator' });
+        this._icon = new St.Icon({ style_class: 'popup-menu-icon' });
+        box.add(this._icon, { y_align: St.Align.MIDDLE, y_fill: false });
         this._label = new St.Label();
+        this.actor.label_actor = this._label;
+        box.add(this._label, { y_align: St.Align.MIDDLE, y_fill: false });
         this._primaryItem = null;
-        this.actor.add_actor(this._label);
+        this.actor.add_actor(box);
 
         // create a separate section of items to add sensor items to
         // so we can keep a separator and preferences items at bottom
@@ -194,6 +186,11 @@ const IndicatorSensorsIndicator = new Lang.Class({
         this._objectManager.GetManagedObjectsRemote(Lang.bind(this, function(result, error) {
             // result contains the exported objects (sensors in this
             // case) indexed by path
+            if (error) {
+                log('Error getting objects managed by indicator-sensors: ' +
+                    error);
+                return;
+            }
             let objects = result[0];
             for each (let path in Object.keys(objects)) {
                 // TODO: by convention this only exports
@@ -206,24 +203,35 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // make sure we dynamically update when sensors enabled /
         // disabled
         this._objectManager.connectSignal('InterfacesAdded', Lang.bind(this, function(proxy, sender, [path, props]) {
-            global.log("interface added:" + path);
             let sensor = new ActiveSensor(path);
             this._addSensor(sensor, path);
         }));
         this._objectManager.connectSignal('InterfacesRemoved', Lang.bind(this, function(proxy, sender, [path, props]) {
-            global.log("interface removed:" + path);
             this._removeSensor(path, true);
         }));
 
-        // finally update our label
-        this._updateLabel();
+        // finally update our display
+        this._updateDisplay();
     },
 
-    _updateLabel: function () {
+    _updateDisplay: function () {
         let text = 'No sensors';
         if (this._primaryItem) {
             // respect setting in gsettings
             text = '';
+            log('IconPath ' + this._primaryItem.sensor.IconPath);
+            if (this._displayFlags & DisplayFlags.ICON &&
+                'IconPath' in this._primaryItem.sensor &&
+                this._primaryItem.sensor.IconPath) {
+                let gicon = Gio.icon_new_for_string(this._primaryItem.sensor.IconPath);
+                log('using gicon ' + gicon);
+                this._icon.gicon = gicon;
+                log('showing icon for primary sensor ' + this._primaryItem.sensor.Label);
+                this._icon.show();
+            } else {
+                log('hiding icon for primary sensor ' + this._primaryItem.sensor.Label);
+                this._icon.hide();
+            }
             if (this._displayFlags & DisplayFlags.LABEL) {
                 text += this._primaryItem.sensor.Label;
             }
@@ -240,54 +248,56 @@ const IndicatorSensorsIndicator = new Lang.Class({
 
     _setPrimaryItem: function (item) {
         if (item != this._primaryItem){
-            if (this._primaryItem) {
-                this._primaryItem.prop.disconnectSignal(this._id);
+            if (this._primaryItem && this._id) {
+                this._primaryItem.sensor.disconnect(this._id);
                 this._primaryItem.setShowDot(false);
                 this._primaryItem = null;
                 this._id = null;
             }
             this._primaryItem = item;
+            this._id = null;
             if (this._primaryItem) {
 		let sensor = this._primaryItem.sensor;
 		if (this._primarySensorPath != sensor.Path) {
-                    global.log("_setPrimaryItem: setting " + INDICATOR_PRIMARY_SENSOR_KEY + ": " +
-                               this._primaryItem.sensor.Path);
                     this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
                                               this._primaryItem.sensor.Path);
 		}
                 this._primaryItem.setShowDot(true);
-                this._id = this._primaryItem.prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
-                    this._updateLabel();
-                }));
+                this._id = this._primaryItem.sensor.connect('g-properties-changed',
+                                                            Lang.bind(this, this._updateDisplay));
             }
-            this._updateLabel();
+            this._updateDisplay();
         }
     },
 
     _rebuildMenu: function () {
-        // since we can't easily enforce the ordering of items, remove
-        // all and recreate them in the correct order
-        this._itemsSection.removeAll();
-
         // sort all sensor paths by index
         let paths = Object.keys(this._items);
         paths = paths.sort(Lang.bind(this, function (a, b) {
             return (this._items[a].sensor.Index - this._items[b].sensor.Index);
         }));
+        // since we can't easily enforce the ordering of items, remove
+        // all and recreate them in the correct order - delete to
+        // remove so signals get disconnected etc
+        this._itemsSection.removeAll();
+
         for (let i = 0; i < paths.length; i++) {
-            let _path = paths[i];
-            let _sensor = this._items[_path].sensor;
-            let item = new IndicatorSensorsItem(_sensor, _path);
-            this._items[_path].item = item;
+            let path = paths[i];
+            let sensor = this._items[path].sensor;
+            if ('item' in this._items[path] &&
+                this._items[path].item) {
+                delete this._items[path].item;
+            }
+            let item = new IndicatorSensorsItem(sensor, path);
+            this._items[path].item = item;
             item.connect('activate', Lang.bind(this, function(item) {
                 // set this item as primary one
-                global.log("sensor " + item.sensor.Path + "activated - setting as primary item");
                 this._setPrimaryItem(item);
             }));
             this._itemsSection.addMenuItem(item);
             // see if this path matches _primarySensorPath to update as
             // new item
-            if (this._primarySensorPath == _sensor.Path) {
+            if (this._primarySensorPath == sensor.Path) {
                 this._setPrimaryItem(item);
             }
         }
@@ -296,8 +306,10 @@ const IndicatorSensorsIndicator = new Lang.Class({
     _addSensor: function (sensor, path) {
         // watch for properties change so if sensor index changes we can relist
         // them
-        var prop = new Properties(path);
-        prop.connectSignal('PropertiesChanged', Lang.bind(this, function(proxy, sender, [iface, props]) {
+        var id = sensor.connect('g-properties-changed', Lang.bind(this, function() {
+            if (!('_items' in this)) {
+                return;
+            }
           var index = this._items[path].sensor.Index;
           if (index != this._items[path].index) {
             this._items[path].index = index;
@@ -307,17 +319,17 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // save Index so we can know if sensors get reordered
         this._items[path] = { sensor: sensor,
                               index: sensor.Index,
-                              prop: prop };
+                              id: id };
         // rebuild menu to show new sensor in correct position
         this._rebuildMenu();
     },
 
     _removeSensor: function (path, active) {
-        global.log("Removing sensor: " + path + " [active: " + active + "]");
         let sensor = this._items[path].sensor;
         let item = this._items[path].item;
-        let prop = this._items[path].prop;
+        let id = this._items[path].id;
         delete this._items[path];
+        sensor.disconnect(id);
         if (active && item == this._primaryItem) {
             let paths = Object.keys(this._items);
             if (paths.length > 0) {
@@ -332,7 +344,6 @@ const IndicatorSensorsIndicator = new Lang.Class({
     },
 
     destroy: function() {
-        global.log("Removing all sensors");
         for each (let path in Object.keys(this._items)) {
             this._removeSensor(path, false);
         }
