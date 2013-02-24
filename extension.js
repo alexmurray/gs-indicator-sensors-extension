@@ -91,9 +91,13 @@ const IndicatorSensorsItem = new Lang.Class({
 	this.parent();
         this.sensor = sensor;
 
+        let box = new St.BoxLayout({ style_class: 'sensor' });
+        this._icon = new St.Icon({ style_class: 'popup-menu-icon' });
         this._label = new St.Label({ text: '' });
+        box.add(this._icon);
+        box.add(this._label);
+        this.addActor(box);
         this._valueLabel = new St.Label({ text: '' });
-        this.addActor(this._label);
         this.addActor(this._valueLabel, { align: St.Align.END });
 
         this._id = this.sensor.connect('g-properties-changed',
@@ -106,6 +110,7 @@ const IndicatorSensorsItem = new Lang.Class({
     },
 
     _update: function() {
+        this._icon.gicon = Gio.icon_new_for_string(this.sensor.IconPath);
         this._label.text = this.sensor.Label;
         this._valueLabel.text = (this.sensor.Value.toFixed(this.sensor.Digits) +
                                  this.sensor.Units);
@@ -157,7 +162,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
                                }));
         // replace our icon with a label to show the primary sensor
         this.actor.remove_actor(this.actor.get_children()[0]);
-        let box = new St.BoxLayout({ name: 'indicatorSensorsPrimaryIndicator' });
+        let box = new St.BoxLayout({ style_class: 'sensor' });
         this._icon = new St.Icon({ style_class: 'popup-menu-icon' });
         box.add(this._icon, { y_align: St.Align.MIDDLE, y_fill: false });
         this._label = new St.Label();
