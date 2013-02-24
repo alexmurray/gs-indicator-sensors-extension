@@ -164,6 +164,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         this.actor.remove_actor(this.actor.get_children()[0]);
         let box = new St.BoxLayout({ style_class: 'sensor' });
         this._icon = new St.Icon({ style_class: 'popup-menu-icon' });
+        this._icon_path = null;
         box.add(this._icon, { y_align: St.Align.MIDDLE, y_fill: false });
         this._label = new St.Label();
         this.actor.label_actor = this._label;
@@ -224,17 +225,17 @@ const IndicatorSensorsIndicator = new Lang.Class({
         if (this._primaryItem) {
             // respect setting in gsettings
             text = '';
-            log('IconPath ' + this._primaryItem.sensor.IconPath);
             if (this._displayFlags & DisplayFlags.ICON &&
                 'IconPath' in this._primaryItem.sensor &&
                 this._primaryItem.sensor.IconPath) {
-                let gicon = Gio.icon_new_for_string(this._primaryItem.sensor.IconPath);
-                log('using gicon ' + gicon);
-                this._icon.gicon = gicon;
-                log('showing icon for primary sensor ' + this._primaryItem.sensor.Label);
-                this._icon.show();
+                let icon_path = this._primaryItem.sensor.IconPath;
+                if (icon_path != this._icon_path) {
+                    let gicon = Gio.icon_new_for_string(icon_path);
+                    this._icon.gicon = gicon;
+                    this._icon.show();
+                    this._icon_path = icon_path;
+                }
             } else {
-                log('hiding icon for primary sensor ' + this._primaryItem.sensor.Label);
                 this._icon.hide();
             }
             if (this._displayFlags & DisplayFlags.LABEL) {
