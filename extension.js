@@ -236,6 +236,10 @@ const IndicatorSensorsIndicator = new Lang.Class({
                     this._icon_path = icon_path;
                 }
             } else {
+                // we aren't displaying icon so null our local copy so
+                // that if the display flag is retoggled we actually
+                // show it
+                this._icon_path = null;
                 this._icon.hide();
             }
             if (this._displayFlags & DisplayFlags.LABEL) {
