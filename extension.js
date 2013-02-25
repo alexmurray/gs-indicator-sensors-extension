@@ -242,10 +242,13 @@ const IndicatorSensorsIndicator = new Lang.Class({
                 this._icon_path = null;
                 this._icon.hide();
             }
-            if (this._displayFlags & DisplayFlags.LABEL) {
+            if (this._displayFlags & DisplayFlags.LABEL &&
+                this._primaryItem.sensor.Label) {
                 text += this._primaryItem.sensor.Label;
             }
-            if (this._displayFlags & DisplayFlags.VALUE) {
+            if (this._displayFlags & DisplayFlags.VALUE &&
+                this._primaryItem.sensor.Value &&
+                this._primaryItem.sensor.Units) {
                 // make sure there is a space if we have a label
                 if (text != '') {
                     text += ' ';
