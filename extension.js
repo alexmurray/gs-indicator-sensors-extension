@@ -374,6 +374,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         for each (let path in Object.keys(this._items)) {
             this._removeSensor(path, false);
         }
+        this._setPrimaryItem(null);
         this._indicatorSensors.ShowIndicatorRemote();
         delete this._items;
         delete this._settings;
