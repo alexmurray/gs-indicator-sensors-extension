@@ -285,6 +285,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
 
     _rebuildMenu: function () {
         // sort all sensor paths by index
+        if (!('_items' in this || !this._items)) {
+            log('_rebuildMenu: _items is null');
+        }
         let paths = Object.keys(this._items);
         paths = paths.sort(Lang.bind(this, function (a, b) {
             return (this._items[a].sensor.Index - this._items[b].sensor.Index);
@@ -320,15 +323,20 @@ const IndicatorSensorsIndicator = new Lang.Class({
         // watch for properties change so if sensor index changes we can relist
         // them
         var id = sensor.connect('g-properties-changed', Lang.bind(this, function() {
-            if (!('_items' in this)) {
+            if (!('_items' in this || !this._items)) {
+                log('sensor properties changed: _items is null');
                 return;
             }
-          var index = this._items[path].sensor.Index;
-          if (index != this._items[path].index) {
-            this._items[path].index = index;
-            this._rebuildMenu();
-          }
+            var index = this._items[path].sensor.Index;
+            if (index != this._items[path].index) {
+                this._items[path].index = index;
+                this._rebuildMenu();
+            }
         }));
+        if (!('_items' in this || !this._items)) {
+            log('_addSensor: _items is null');
+            return;
+        }
         // save Index so we can know if sensors get reordered
         this._items[path] = { sensor: sensor,
                               index: sensor.Index,
@@ -338,6 +346,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
     },
 
     _removeSensor: function (path, active) {
+        if (!('_items' in this || !this._items)) {
+            log('_removeSensor: _items is null');
+        }
         let sensor = this._items[path].sensor;
         let item = this._items[path].item;
         let id = this._items[path].id;
@@ -357,6 +368,9 @@ const IndicatorSensorsIndicator = new Lang.Class({
     },
 
     destroy: function() {
+        if (!('_items' in this || !this._items)) {
+            log('destroy: _items is null');
+        }
         for each (let path in Object.keys(this._items)) {
             this._removeSensor(path, false);
         }
