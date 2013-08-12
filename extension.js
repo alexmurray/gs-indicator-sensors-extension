@@ -396,8 +396,10 @@ function enable() {
                                              Main.panel.addToStatusArea('indicator-sensors', _indicator);
                                          },
                                          function () {
-                                             _indicator.destroy();
-                                             _indicator = null;
+                                             if (_indicator) {
+                                                 _indicator.destroy();
+                                                 _indicator = null;
+                                             }
                                          });
 }
 
@@ -405,5 +407,6 @@ function disable() {
     Gio.DBus.session.unwatch_name(_watch);
     if (_indicator) {
         _indicator.destroy();
+        _indicator = null;
     }
 }
