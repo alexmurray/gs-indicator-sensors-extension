@@ -25,19 +25,21 @@ const Lang = imports.lang;
 const BUS_NAME = 'com.github.alexmurray.IndicatorSensors';
 const OBJECT_MANAGER_PATH = '/com/github/alexmurray/IndicatorSensors/ActiveSensors';
 
-const ObjectManagerInterface = <interface name="org.freedesktop.DBus.ObjectManager">
-<method name="GetManagedObjects">
-    <arg type="a{oa{sa{sv}}}" direction="out" />
-</method>
-<signal name="InterfacesAdded">
-    <arg type="o" direction="out" />
-    <arg type="a{sa{sv}}" direction="out" />
-</signal>
-<signal name="InterfacesRemoved">
-    <arg type="o" direction="out" />
-    <arg type="as" direction="out" />
-</signal>
-</interface>;
+const ObjectManagerInterface = '<node>\
+<interface name="org.freedesktop.DBus.ObjectManager">\
+<method name="GetManagedObjects">\
+    <arg type="a{oa{sa{sv}}}" direction="out" />\
+</method>\
+ <signal name="InterfacesAdded">\
+    <arg type="o" direction="out" />\
+    <arg type="a{sa{sv}}" direction="out" />\
+</signal>\
+    <signal name="InterfacesRemoved">\
+    <arg type="o" direction="out" />\
+    <arg type="as" direction="out" />\
+</signal>\
+</interface>\
+</node>';
 
 const ObjectManagerProxy = Gio.DBusProxy.makeProxyWrapper(ObjectManagerInterface);
 
@@ -46,15 +48,17 @@ function ObjectManager() {
                                   OBJECT_MANAGER_PATH);
 }
 
-const ActiveSensorInterface = <interface name="com.github.alexmurray.IndicatorSensors.ActiveSensor">
-    <property name="Path" type="s" access="read" />
-    <property name="Digits" type="u" access="read" />
-    <property name="Label" type="s" access="read" />
-    <property name="Units" type="s" access="read" />
-    <property name="Value" type="d" access="read" />
-    <property name="Index" type="u" access="read" />
-    <property name="IconPath" type="s" access="read" />
-</interface>;
+const ActiveSensorInterface = '<node>\
+<interface name="com.github.alexmurray.IndicatorSensors.ActiveSensor">\
+    <property name="Path" type="s" access="read" />\
+    <property name="Digits" type="u" access="read" />\
+    <property name="Label" type="s" access="read" />\
+    <property name="Units" type="s" access="read" />\
+    <property name="Value" type="d" access="read" />\
+    <property name="Index" type="u" access="read" />\
+    <property name="IconPath" type="s" access="read" />\
+</interface>\
+</node>';
 
 const ActiveSensorProxy = Gio.DBusProxy.makeProxyWrapper(ActiveSensorInterface);
 
@@ -65,14 +69,16 @@ function ActiveSensor(path) {
 
 const INDICATOR_SENSORS_PATH = '/com/github/alexmurray/IndicatorSensors';
 
-const IndicatorSensorsInterface = <interface name="com.github.alexmurray.IndicatorSensors">
-<method name="ShowPreferences">
-</method>
-<method name="ShowIndicator">
-</method>
-<method name="HideIndicator">
-</method>
-</interface>;
+const IndicatorSensorsInterface = '<node>\
+<interface name="com.github.alexmurray.IndicatorSensors">\
+<method name="ShowPreferences">\
+</method>\
+<method name="ShowIndicator">\
+</method>\
+<method name="HideIndicator">\
+</method>\
+</interface>\
+</node>';
 
 const IndicatorSensorsProxy = Gio.DBusProxy.makeProxyWrapper(IndicatorSensorsInterface);
 
@@ -87,7 +93,7 @@ const IndicatorSensorsItem = new Lang.Class({
     Extends: PopupMenu.PopupBaseMenuItem,
 
     _init: function(sensor, path) {
-	this.parent();
+        this.parent();
         this.sensor = sensor;
 
         let box = new St.BoxLayout({ style_class: 'sensor' });
@@ -95,9 +101,9 @@ const IndicatorSensorsItem = new Lang.Class({
         this._label = new St.Label({ text: '' });
         box.add(this._icon);
         box.add(this._label);
-        this.addActor(box);
+        this.actor.add(box);
         this._valueLabel = new St.Label({ text: '' });
-        this.addActor(this._valueLabel, { align: St.Align.END });
+        this.actor.add(this._valueLabel, { align: St.Align.END });
 
         this._id = this.sensor.connect('g-properties-changed',
                                        Lang.bind(this, this._update));
@@ -127,14 +133,14 @@ const DisplayFlags ={
 
 const IndicatorSensorsIndicator = new Lang.Class({
     Name: 'IndicatorSensors.Indicator',
-    Extends: PanelMenu.SystemStatusButton,
+    Extends: PanelMenu.Button,
 
     _init: function() {
         this._indicatorSensors = new IndicatorSensors();
         this._indicatorSensors.HideIndicatorRemote();
 
         // TODO: add translation
-	this.parent('indicator-sensors', "Hardware Sensors Indicator");
+        this.parent(0.0, "Hardware Sensors Indicator");
 
         let settings = new Gio.Settings({ schema: INDICATOR_SETTINGS_SCHEMA });
         this._settings = settings;
@@ -160,22 +166,20 @@ const IndicatorSensorsIndicator = new Lang.Class({
                                    this._updateDisplay();
                                }));
         // replace our icon with a label to show the primary sensor
-        this.actor.remove_actor(this.actor.get_children()[0]);
-        let box = new St.BoxLayout({ style_class: 'sensor' });
-        this._icon = new St.Icon({ style_class: 'popup-menu-icon' });
+        let box = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
+        this._icon = new St.Icon({ style_class: 'system-status-icon' });
         this._icon_path = null;
         box.add(this._icon, { y_align: St.Align.MIDDLE, y_fill: false });
         this._label = new St.Label();
-        this.actor.label_actor = this._label;
         box.add(this._label, { y_align: St.Align.MIDDLE, y_fill: false });
         this._primaryItem = null;
-        this.actor.add_actor(box);
+        this.actor.add_child(box);
 
         // create a separate section of items to add sensor items to
         // so we can keep a separator and preferences items at bottom
         // of list
-	this._itemsSection = new PopupMenu.PopupMenuSection();
-	this.menu.addMenuItem(this._itemsSection);
+        this._itemsSection = new PopupMenu.PopupMenuSection();
+        this.menu.addMenuItem(this._itemsSection);
 
         // initialise our list of items to being empty
         this._items = {};
@@ -262,19 +266,19 @@ const IndicatorSensorsIndicator = new Lang.Class({
         if (item != this._primaryItem){
             if (this._primaryItem && this._id) {
                 this._primaryItem.sensor.disconnect(this._id);
-                this._primaryItem.setShowDot(false);
+                this._primaryItem.setOrnament(PopupMenu.Ornament.NONE);
                 this._primaryItem = null;
                 this._id = null;
             }
             this._primaryItem = item;
             this._id = null;
             if (this._primaryItem) {
-		let sensor = this._primaryItem.sensor;
-		if (this._primarySensorPath != sensor.Path) {
+                let sensor = this._primaryItem.sensor;
+                if (this._primarySensorPath != sensor.Path) {
                     this._settings.set_string(INDICATOR_PRIMARY_SENSOR_KEY,
                                               this._primaryItem.sensor.Path);
-		}
-                this._primaryItem.setShowDot(true);
+                }
+                this._primaryItem.setOrnament(PopupMenu.Ornament.DOT);
                 this._id = this._primaryItem.sensor.connect('g-properties-changed',
                                                             Lang.bind(this, this._updateDisplay));
             }
@@ -377,7 +381,7 @@ const IndicatorSensorsIndicator = new Lang.Class({
         this._indicatorSensors.ShowIndicatorRemote();
         delete this._items;
         delete this._settings;
-	this.parent();
+        this.parent();
     }
 });
 
